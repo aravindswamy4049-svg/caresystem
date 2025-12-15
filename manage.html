@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareSystem+ — Manage Patients</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e293b;
+      margin: 0;
+      padding: 20px;
+      color: white;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .card {
+      background: #2d3646;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #fff;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+      color: #cbd5e1;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      font-size: 15px;
+      color: white;
+      background: #384558;
+    }
+
+    button {
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      margin-top: 15px;
+      color: #fff;
+    }
+
+    .btn-blue { background: #2563eb; }
+    .btn-green { background: #16a34a; }
+    .btn-red { background: #dc2626; }
+    .btn-yellow { background: #f59e0b; }
+
+    .result {
+      background: #334155;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 15px;
+      display: none;
+      color: #fff;
+    }
+
+    .file-item {
+      background: #475569;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+    }
+  </style>
+
+</head>
+
+<body>
+<div class="container">
+
+  <!-- ADD / UPDATE PATIENT -->
+  <div class="card">
+    <h2>Add / Update Patient</h2>
+
+    <label>Patient ID</label>
+    <input id="add-id" type="text" />
+
+    <label>Name</label>
+    <input id="add-name" type="text" />
+
+    <label>Age</label>
+    <input id="add-age" type="number" />
+
+    <label>Gender</label>
+    <select id="add-gender">
+      <option value="">Select</option>
+      <option>Male</option>
+      <option>Female</option>
+      <option>Other</option>
+    </select>
+
+    <label>Disease / Notes</label>
+    <textarea id="add-disease" rows="2"></textarea>
+
+    <button id="btn-add" class="btn-blue">Save Patient</button>
+
+    <div id="add-result" class="result"></div>
+  </div>
+
+
+  <!-- SEARCH PATIENT -->
+  <div class="card">
+    <h2>Search Patient / View Details</h2>
+
+    <label>Patient ID</label>
+    <input id="search-id" type="text" />
+
+    <button id="btn-search" class="btn-blue">Search</button>
+    <button id="btn-edit-fill" class="btn-yellow">Load For Edit</button>
+    <button id="btn-delete-patient" class="btn-red">Delete Patient</button>
+    <button id="btn-list-reports" class="btn-green">List Reports</button>
+
+    <div id="search-result" class="result"></div>
+
+    <div id="reports-area" style="display:none; margin-top:15px">
+      <h3>Reports</h3>
+      <div id="file-list"></div>
+    </div>
+  </div>
+
+
+  <!-- UPLOAD REPORT -->
+  <div class="card">
+    <h2>Upload Report</h2>
+
+    <label>Patient ID</label>
+    <input id="upload-id" type="text" />
+
+    <label>Choose File</label>
+    <input id="upload-file" type="file" />
+
+    <button id="btn-upload" class="btn-blue">Upload File</button>
+
+    <div id="upload-result" class="result"></div>
+  </div>
+
+</div>
+
+
+<script>
+  const API = "http://127.0.0.1:5000";
+  const $ = id => document.getElementById(id);
+
+  function show(el, text) {
+    el.style.display = "block";
+    el.textContent = text;
+  }
+
+  function hide(el) {
+    el.style.display = "none";
+  }
+
+  // Save / Update patient
+  $('btn-add').addEventListener('click', async () => {
+    const data = {
+      id: $('add-id').value.trim(),
+      name: $('add-name').value.trim(),
+      age: $('add-age').value.trim(),
+      gender: $('add-gender').value.trim(),
+      disease: $('add-disease').value.trim()
+    };
+
+    const res = await fetch(`${API}/add_patient`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    const output = await res.json();
+    show($('add-result'), output.message);
+
+    $('add-id').value = "";
+    $('add-name').value = "";
+    $('add-age').value = "";
+    $('add-gender').value = "";
+    $('add-disease').value = "";
+  });
+
+  // Search patient
+  $('btn-search').addEventListener('click', async () => {
+    const id = $('search-id').value.trim();
+    const res = await fetch(`${API}/search_patient?id=${id}`);
+
+    if (res.status === 404)
+      return show($('search-result'), "Patient not found");
+
+    const p = await res.json();
+    show($('search-result'),
+      `ID: ${p.id}  |  Name: ${p.name}  |  Age: ${p.age}  |  Gender: ${p.gender}  |  Disease: ${p.disease}`);
+  });
+
+  // Load patient into form
+  $('btn-edit-fill').addEventListener('click', async () => {
+    const id = $('search-id').value.trim();
+    const res = await fetch(`${API}/search_patient?id=${id}`);
+
+    if (res.status === 404) return alert("Patient not found");
+
+    const p = await res.json();
+
+    $('add-id').value = p.id;
+    $('add-name').value = p.name;
+    $('add-age').value = p.age;
+    $('add-gender').value = p.gender;
+    $('add-disease').value = p.disease;
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // Delete patient
+  $('btn-delete-patient').addEventListener('click', async () => {
+    const id = $('search-id').value.trim();
+
+    if (!confirm("Delete this patient and all reports?")) return;
+
+    const res = await fetch(`${API}/delete_patient?id=${id}`, {
+      method: "DELETE"
+    });
+
+    alert((await res.json()).message);
+    $('search-id').value = "";
+    hide($('search-result'));
+    $('file-list').innerHTML = "";
+    $('reports-area').style.display = "none";
+  });
+
+  // List Reports
+  $('btn-list-reports').addEventListener('click', async () => {
+    const id = $('search-id').value.trim();
+    const res = await fetch(`${API}/list_reports?id=${id}`);
+    const data = await res.json();
+
+    $('file-list').innerHTML = "";
+    $('reports-area').style.display = "block";
+
+    data.files.forEach(f => {
+      const row = document.createElement("div");
+      row.className = "file-item";
+
+      row.innerHTML = `
+        <span>${f}</span>
+        <div>
+          <button class="btn-blue" onclick="window.open('${API}/get_report?id=${id}&file=${f}')">View</button>
+          <button class="btn-red" onclick="deleteReport('${id}','${f}')">Delete</button>
+        </div>
+      `;
+
+      $('file-list').appendChild(row);
+    });
+  });
+
+  // Delete report
+  async function deleteReport(id, file) {
+    if (!confirm("Delete this report?")) return;
+
+    const res = await fetch(`${API}/delete_report?id=${id}&file=${file}`, {
+      method: "DELETE"
+    });
+
+    alert((await res.json()).message);
+    $('btn-list-reports').click();
+  }
+
+  // Upload report
+  $('btn-upload').addEventListener('click', async () => {
+    const id = $('upload-id').value.trim();
+    const file = $('upload-file').files[0];
+
+    const form = new FormData();
+    form.append("id", id);
+    form.append("file", file);
+
+    const res = await fetch(`${API}/upload_report`, {
+      method: "POST",
+      body: form
+    });
+
+    show($('upload-result'), (await res.json()).message);
+
+    $('upload-id').value = "";
+    $('upload-file').value = "";
+  });
+
+</script>
+
+</body>
+</html>
